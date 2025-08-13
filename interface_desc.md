@@ -3,7 +3,7 @@
 ## TỔNG QUAN CÁC API
 
 ### 📚 Database APIs
-- `/api/db/index_doc`: Đẩy và cập nhật dữ liệu văn bản vào vector database QDrant
+- `/api/db/index_doc`: Đẩy và cập nhật dữ liệu văn bản vào cơ sở dữ liệu tri thức của agent, agent sẽ dùng thông tin trong này để trả lời. Dữ liệu cũ sẽ bị xóa
 
 ### 🤖 Agent APIs  
 - `/api/agent/chat`: Gửi tin nhắn và nhận phản hồi từ AI agent
@@ -14,7 +14,7 @@
 ---  
 ### `/api/db/index_doc`: sync (POST)
 
-**Mô tả:** Đẩy dữ liệu văn bản vào vector database QDrant để hệ thống có thể tìm kiếm và truy xuất thông tin liên quan khi trả lời câu hỏi của người dùng.
+**Mô tả:** Đẩy dữ liệu văn bản vào cơ sở tri thức để agent có thể tìm kiếm và truy xuất thông tin liên quan khi trả lời câu hỏi của người dùng. Dữ liệu này sẽ thay thế dữ liệu cũ (dữ liệu cũ bị xóa)
 
 **PAYLOAD**  
 ```json
@@ -22,6 +22,9 @@
   "content": "string - Nội dung văn bản cần được lưu trữ"
 }
 ```
+
+**VALIDATION:**
+- `content`: BẮT BUỘC (nên xử lý thành văn bản thuần)
 
 **RESPONSE**
 ```json
@@ -43,13 +46,12 @@ curl -X POST http://localhost:8000/api/db/index_doc \
   "status": "SUCCEEDED"
 }
 ```
-**YÊU CẦU**: Dữ liệu phải được làm sạch thành dạng văn bản thuần
 
 ---  
 
 ### `/api/agent/chat`: sync (POST)
 
-**Mô tả:** Gửi tin nhắn từ người dùng và nhận phản hồi từ AI agent. AI sẽ sử dụng thông tin trong vector database để trả lời các câu hỏi về du lịch. Có thể tùy chọn cung cấp hướng dẫn hệ thống để tùy chỉnh cách AI phản hồi.
+**Mô tả:** Gửi tin nhắn từ người dùng và nhận phản hồi từ agent. Agent sẽ sử dụng thông tin trong cơ sở tri thức để trả lời các câu hỏi. Có thể tùy chọn cung cấp hướng dẫn hệ thống để tùy chỉnh cách agent phản hồi.
 
 **PAYLOAD**
 ```json
@@ -59,6 +61,11 @@ curl -X POST http://localhost:8000/api/db/index_doc \
   "system_instruction": "string - (Tùy chọn) Hướng dẫn hệ thống để tùy chỉnh cách AI phản hồi"
 }
 ```
+
+**VALIDATION:**
+- `thread_id`: BẮT BUỘC (khuyến khích dùng UUID4)
+- `message`: BẮT BUỘC
+- `system_instruction`: TÙY CHỌN, tối đa 5000 ký tự. Dùng để thay đổi hành vi trả lời của AI
 
 **RESPONSE**
 ```json
@@ -113,6 +120,10 @@ curl -X POST http://localhost:8000/api/agent/chat \
   "thread_id": "string - ID của thread cần lấy lịch sử"
 }
 ```
+
+**VALIDATION:**
+- `thread_id`: BẮT BUỘC (khuyến khích UUID4)
+- Thread phải tồn tại trong hệ thống (tạo bởi API chat trước đó, client phải quản lý điều này để tránh xung đột)
 
 **RESPONSE**  
 ```json
@@ -174,6 +185,9 @@ curl -X POST http://localhost:8000/api/agent/get_history \
 }
 ```
 
+**VALIDATION:**
+- `initial_message`: BẮT BUỘC, độ dài 1-2,000 ký tự, văn bản thuần
+
 **RESPONSE**
 ```json
 {
@@ -197,8 +211,9 @@ curl -X POST http://localhost:8000/api/agent/generate_thread_description \
 
 ---
 
-## ⚠️ RÀNG BUỘC HỆ THỐNG
 
-**QUAN TRỌNG:** 
-- **Hệ thống sử dụng khóa để đảm bảo chỉ có DUY NHẤT MỘT endpoint hoạt động cùng một lúc. Điều này đảm bảo tính nhất quán của dữ liệu và tránh xung đột khi xử lý đồng thời**
-- **`thread_id`, và nội dung văn bản để chỉ mục phải được quản lý bởi client**
+
+## RÀNG BUỘC KHÁC
+- **Hệ thống sử dụng khóa toàn cục để đảm bảo chỉ có DUY NHẤT MỘT ENDPOINT được xử lý cùng một lúc**
+- **Tất cả API `/api/agent/*` và `/api/db/*` đều ĐỒNG BỘ và sử dụng chung một khóa. Nếu có request đang xử lý, các request khác sẽ nhận HTTP 503 (Service Unavailable)**
+- **Các tin nhắn của AI sẽ luôn trả về dạng Markdown và có Latex, nếu muốn thay đổi hành vi này thì hãy nói rõ trong `system_instruction` là *"...Đừng sử dụng Markdown hoặc Latex...***
