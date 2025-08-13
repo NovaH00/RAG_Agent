@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "accelerate>=1.9.0",
+    "fastapi>=0.104.0",
     "huggingface-hub[hf-xet]>=0.34.3",
     "ipython>=8.37.0",
     "langchain>=0.3.27",
@@ -20,6 +21,7 @@ dependencies = [
     "torch>=2.7.1",
     "torchvision>=0.22.1",
     "transformers>=4.54.1",
+    "uvicorn[standard]>=0.24.0",
 ]
 
 [[tool.uv.index]]
