@@ -72,7 +72,10 @@ class Agent:
         self._workflow.set_entry_point("GENERATE_QUERY")
         self._workflow.set_finish_point("ANSWER")
         
-        self.graph = self._workflow.compile(checkpointer)
+        if checkpointer:
+            self.graph = self._workflow.compile(checkpointer)
+        else:
+            self.graph = self._workflow.compile(checkpointer=InMemorySaver())
         
     def GENERATE_QUERY(self, state: MainState) -> Command[Literal["SEARCH"]]:
         formatted_instruction = query_writer_instructions.format(
@@ -152,6 +155,12 @@ class Agent:
             search_result="".join(state["search_result"])
         )
         
+        # Tạo danh sách messages với system instruction nếu có
+        messages = []
+        if state.get("system_instruction"):
+            messages.append(SystemMessage(content=state["system_instruction"]))
+        messages.append(HumanMessage(content=formatted_instruction))
+        
         llm = ChatOpenAI(
             model=self._config.ANSWER_MODEL.model_name,
             api_key=self._config.ANSWER_MODEL.api_key,
@@ -160,7 +169,7 @@ class Agent:
             base_url=self._config.ANSWER_MODEL.base_url
         )
         
-        response = llm.invoke(formatted_instruction)
+        response = llm.invoke(messages)
         
         return Command(
             update={
